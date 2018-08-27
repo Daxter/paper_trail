@@ -416,7 +416,7 @@ RSpec.describe(::PaperTrail, versioning: true) do
           before { @widget.update_attributes(name: "Ford") }
 
           it "add to its trail" do
-            expect(@widget.versions.count).to(eq((@count + 1)))
+            expect(@widget.versions.length).to(eq((@count + 1)))
           end
         end
       end

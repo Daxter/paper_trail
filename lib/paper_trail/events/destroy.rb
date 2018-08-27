@@ -14,7 +14,12 @@ module PaperTrail
       def data
         data = {
           item_id: @record.id,
-          item_type: @record.class.paper_trail.versions_association_item_type,
+          item_type:
+            if @record.respond_to?(@record.class.inheritance_column)
+              @record.class
+            else
+              @record.class.base_class
+            end.name,
           event: @record.paper_trail_event || "destroy",
           whodunnit: PaperTrail.request.whodunnit
         }

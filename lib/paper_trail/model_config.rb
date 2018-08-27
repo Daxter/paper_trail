@@ -110,14 +110,6 @@ module PaperTrail
       @_version_class ||= @model_class.version_class_name.constantize
     end
 
-    def versions_association_item_type
-      if @model_class.descends_from_active_record?
-        @model_class.base_class.name
-      else
-        @model_class.name
-      end
-    end
-
     private
 
     def active_record_gem_version
@@ -147,20 +139,40 @@ module PaperTrail
     # is "Dog". If `attrs["species"]` is blank, `item_type` is "Animal". See
     # `spec/models/animal_spec.rb`.
     def setup_versions_association(klass)
-      klass.has_many(
+      has_manys = klass.has_many(
         klass.versions_association_name,
         lambda do
           relation = order(model.timestamp_sort_order)
-          item_type = klass.paper_trail.send(:versions_association_item_type)
-          relation = relation.unscope(where: :item_type).where(item_type: item_type)
+          # Unless it's not a subclassed model
+          unless klass.descendants.any? &&
+              # Or an STI devoid of an `inheritance_column`
+              klass.columns.exclude?(klass.inheritance_column)
+            # Search for Versions based on the real class name
+            relation = relation.unscope(where: :item_type).where(item_type: klass.name)
+          end
           relation
         end,
         class_name: klass.version_class_name,
         as: :item
       )
 
-      # We override the assocation when STI models are created from a base class
-      # in order to use the right `item_type`.
+      # Only for this .versions association override HasManyAssociation#collection?
+      # (that normally always returns true) so it returns false when referring to
+      # a subclassed model that uses STI.  Allows .create() events not to revert
+      # back to base_class at the final stages when Association#creation_attributes
+      # gets called.
+      unless klass.descends_from_active_record?
+        has_manys[klass.versions_association_name.to_s].define_singleton_method(:collection?) do
+          false
+        end
+      end
+
+      setup_versions_association_when_inheriting(klass)
+    end
+
+    def setup_versions_association_when_inheriting(klass)
+      # When STI models are created from another class, override the otherwise-inherited
+      # has_many :versions so it will use the right `item_type`.
       klass.singleton_class.prepend(Module.new {
         def inherited(klass)
           super

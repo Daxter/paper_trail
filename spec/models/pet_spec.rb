@@ -82,6 +82,10 @@ RSpec.describe Pet, type: :model, versioning: true do
       expect(versions.third.reify).to be_a(Cat) # Cheshire
       expect(versions.fourth.reify).to be_a(Cat) # Cheshire that was destroyed
 
+      # Properly records "destroy" events according to Issue #37 from the store_base_sti_class gem:
+      #   https://github.com/appfolio/store_base_sti_class/issues/37
+      expect(cat.versions.last.event).to eq("destroy")
+
       # Creating an object from the base class is correctly identified as "Animal"
       expect(versions[5].reify).to be_an(Animal) # Muppets Drummer
       expect(versions[6].reify).to be_an(Animal) # Animal that was destroyed
@@ -112,7 +116,7 @@ RSpec.describe Pet, type: :model, versioning: true do
 
     # After creating a bunch of records above, we change the inheritance_column
     # so that we can demonstrate passing hints to the migration generator.
-    xcontext "simulate a historical change to inheritance_column" do
+    context "simulate a historical change to inheritance_column" do
       before do
         Animal.inheritance_column = "species_xyz"
       end

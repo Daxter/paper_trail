@@ -297,6 +297,7 @@ class SetUpTestTables < (
     end
 
     create_table :callback_modifiers, force: true do |t|
+      t.string  :type
       t.string  :some_content
       t.boolean :deleted, default: false
     end
